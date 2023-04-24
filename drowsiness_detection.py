@@ -11,8 +11,12 @@ import imutils
 from imutils.video import VideoStream
 from imutils import face_utils
 import numpy as np
-import argparse
+#import argparse
 import time
+from pygame import mixer
+
+mixer.init()
+sound = mixer.Sound('alarm.wav')
 
 
 # In[2]:
@@ -38,7 +42,7 @@ def eye_aspect_ratio(eye):
 
 EYE_AR_THRESH = 0.25
 EYE_AR_CONSEC_FRAMES = 16
-MOUTH_AR_THRESH = 0.79
+MOUTH_AR_THRESH = 0.82
 # initialize the frame counter as well as a boolean used to
 # indicate if the alarm is going off
 
@@ -51,7 +55,7 @@ detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalfac
 
 print("[INFO] loading facial landmark predictor...")
 
-predictor = dlib.shape_predictor("/home/ravindra/Documents/mini-project/shape_predictor_68_face_landmarks.dat")
+predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 (lStart, lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
 (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 
@@ -83,7 +87,7 @@ def mouth_aspect_ratio(mouth):
 
 
 #cap = cv2.VideoCapture('/home/ravindra/Downloads/WhatsApp Video 2023-04-10 at 16.10.55.mp4')
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # Check if camera opened successfully
 if (cap.isOpened()== False):
@@ -105,6 +109,19 @@ while(cap.isOpened()):
         for (x, y, w, h) in rects:
             rect = dlib.rectangle(int(x), int(y), int(x + w),
                 int(y + h))
+            
+            shape = predictor(gray, rect)
+            shape = face_utils.shape_to_np(shape)
+            leftEye = shape[lStart:lEnd]
+            rightEye = shape[rStart:rEnd]
+            leftEAR = eye_aspect_ratio(leftEye)
+            rightEAR = eye_aspect_ratio(rightEye)
+            # average the eye aspect ratio together for both eyes
+            ear = (leftEAR + rightEAR) / 2.0
+            leftEyeHull = cv2.convexHull(leftEye)
+            rightEyeHull = cv2.convexHull(rightEye)
+            cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
             # determine the facial landmarks for the face region, then
             # convert the facial landmark (x, y)-coordinates to a NumPy
             # array
@@ -120,22 +137,13 @@ while(cap.isOpened()):
             cv2.putText(frame, "MAR: {:.2f}".format(mar), (650, 20), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             if mar > MOUTH_AR_THRESH:
+                try:
+                    sound.play()
+
+                except:  # isplaying = False
+                    pass
                 cv2.putText(frame, "Yawning!", (30, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            
-            
-            shape = predictor(gray, rect)
-            shape = face_utils.shape_to_np(shape)
-            leftEye = shape[lStart:lEnd]
-            rightEye = shape[rStart:rEnd]
-            leftEAR = eye_aspect_ratio(leftEye)
-            rightEAR = eye_aspect_ratio(rightEye)
-            # average the eye aspect ratio together for both eyes
-            ear = (leftEAR + rightEAR) / 2.0
-            leftEyeHull = cv2.convexHull(leftEye)
-            rightEyeHull = cv2.convexHull(rightEye)
-            cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
-            cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)            
             if ear < EYE_AR_THRESH:
                 COUNTER += 1
 #                 print(COUNTER)
@@ -150,6 +158,11 @@ while(cap.isOpened()):
                         #if args["alarm"] > 0:
                             #th.buzzer.blink(0.1, 0.1, 10,background=True)
                     # draw an alarm on the frame
+                        try:
+                            sound.play()
+
+                        except:  # isplaying = False
+                            pass
                     cv2.putText(frame, "DROWSINESS ALERT!", (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             else:
